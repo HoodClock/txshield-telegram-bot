@@ -61,47 +61,56 @@ bot.action(/^scan_(\d+)_(0x[a-fA-F0-9]{40})$/, async (ctx) => {
   await ctx.editMessageText(`🔍 Initiating deep scan on Chain ${chainId}...`);
 
   try {
-    // Fire your TxShield APIs concurrently to the EXACT chain requested
-    const [simRes, honeyRes, phishRes] = await Promise.all([
-      axios.post("https://api.txshield.xyz/api/simulate/execute-simulation", {
-        userAddress: HARDCODED_USER_EOA,
-        tokenAddress: contractAddress,
-        amount: HARDCODED_AMOUNT_WEI,
-        chainId: Number(chainId),
-      }),
-      axios.post("https://api.txshield.xyz/api/honeypot/honeypot-checks", {
-        tokenAddress: contractAddress,
-        chainId: Number(chainId),
-      }),
-      axios.post("https://api.txshield.xyz/api/phishing/phishing-checks", {
-        tokenAddress: contractAddress,
-        chainId: Number(chainId),
-      }),
-    ]);
+      // Fire your TxShield APIs concurrently
+      const [simRes, honeyRes, phishRes] = await Promise.all([
+        axios.post("https://api.txshield.xyz/api/simulate/execute-simulation", {
+          userAddress: HARDCODED_USER_EOA,
+          tokenAddress: contractAddress,
+          amount: HARDCODED_AMOUNT_WEI,
+          chainId: Number(chainId),
+        }),
+        axios.post("https://api.txshield.xyz/api/honeypot/honeypot-checks", {
+          tokenAddress: contractAddress,
+          chainId: Number(chainId),
+        }),
+        axios.post("https://api.txshield.xyz/api/phishing/phishing-checks", {
+          tokenAddress: contractAddress,
+          chainId: Number(chainId),
+        }),
+      ]);
 
-    // Map your data (Verify these keys match your actual backend response)
-    const simStatus = simRes.data.success ? "✅ Executed" : "🚨 Reverted";
-    const isHoneypot = honeyRes.data.isHoneypot;
-    const isPhishing = phishRes.data.isPhishing;
+      // Map your data EXACTLY to your JSON payload
+      const simStatus = simRes.data.success ? "✅ Executed" : "🚨 Reverted";
+      const isHoneypot = simRes.data.isHoneypot || honeyRes.data.isTimeHoneypot;
+      const buyTax = honeyRes.data.buyTax || 0;
+      const sellTax = honeyRes.data.sellTax || 0;
+      const phishingVerdict = phishRes.data.verdict || "Unknown";
 
-    const resultText = `
-🛡️ **TxShield Deep Scan Complete** 🛡️
-Token: \`${contractAddress}\`
-Network ID: **${chainId}**
+      const resultText = `
+  🛡️ **TxShield Deep Scan Complete** 🛡️
+  Token: \`${contractAddress}\`
+  Network ID: **${chainId}**
 
-⚙️ **Simulation**: ${simStatus}
-🍯 **Honeypot**: ${isHoneypot ? "🚨 DETECTED" : "✅ CLEAN"}
-🎣 **Phishing**: ${isPhishing ? "🚨 RISK" : "✅ CLEAN"}
-        `;
+  ⚙️ **Simulation**: ${simStatus}
+  🍯 **Honeypot Risk**: ${isHoneypot ? "🚨 DETECTED" : "✅ CLEAN"}
+  💸 **Taxes**: Buy ${buyTax}% | Sell ${sellTax}%
+  🎣 **Phishing**: ${phishingVerdict}
+      `;
 
-    await ctx.editMessageText(resultText, { parse_mode: "Markdown" });
-  } catch (error) {
-    console.error(error);
-    await ctx.editMessageText(
-      "⚠️ TxShield Engine Error: Scan Failed. Ensure the token exists on this network.",
-    );
-  }
-});
+      await ctx.editMessageText(resultText, { parse_mode: "Markdown" });
+
+    } catch (error) {
+      // This logs the ACTUAL backend error to Railway
+      console.error("Backend Error Data:", error?.response?.data || error.message);
+
+      // This prints the actual error to Telegram so you aren't guessing
+      const backendReason = error?.response?.data?.errorReason || error?.response?.data?.message || "Check Railway Logs.";
+
+      await ctx.editMessageText(
+        `⚠️ **TxShield Engine Error:**\nScan Failed: ${backendReason}\n\n*Ensure this token actually exists on Chain ${chainId}.*`,
+        { parse_mode: "Markdown" }
+      );
+    }
 
 // Start the bot
 bot.launch();
