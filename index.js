@@ -1,5 +1,5 @@
 require("dotenv").config();
-const { Telegraf } = require("telegraf");
+const { Telegraf, Markup } = require("telegraf");
 const axios = require("axios");
 
 // Initialize bot with your BotFather token
@@ -8,63 +8,97 @@ const bot = new Telegraf(process.env.BOT_TOKEN);
 // Regex to validate EVM addresses (basic security check before hitting your API)
 const evmRegex = /^0x[a-fA-F0-9]{40}$/;
 
+// 1. The Command Listener (Asks the user to pick a chain)
 bot.command("check", async (ctx) => {
-  // Extract the text after the /check command
-  const messageText = ctx.message.text;
-  const args = messageText.split(" ");
+  const args = ctx.message.text.split(" ");
 
   if (args.length < 2) {
-    return ctx.reply(
-      "❌ Error: You must provide an address. Usage: /check 0x...",
-    );
+    return ctx.reply("❌ Usage: `/check <address>`", {
+      parse_mode: "Markdown",
+    });
   }
 
-  const contractAddress = args[1];
+  const targetAddress = args[1];
 
-  if (!evmRegex.test(contractAddress)) {
-    return ctx.reply(
-      "⚠️ Invalid EVM Address. Please provide a valid 0x... address.",
-    );
+  if (!evmRegex.test(targetAddress)) {
+    return ctx.reply("⚠️ Invalid EVM Address.");
   }
 
-  // Send a loading message so the user knows it's working
-  const loadingMsg = await ctx.reply(`🔍 Scanning ${contractAddress}...`);
+  // Generate the interactive button menu
+  // We pass the targetAddress in the callback_data so the bot remembers it when the button is clicked
+  const keyboard = Markup.inlineKeyboard([
+    [
+      Markup.button.callback("🔷 Ethereum", `scan_1_${targetAddress}`),
+      Markup.button.callback("🟡 BSC", `scan_56_${targetAddress}`),
+    ],
+    [
+      Markup.button.callback("🔵 Base", `scan_8453_${targetAddress}`),
+      Markup.button.callback("🟠 Arbitrum", `scan_42161_${targetAddress}`),
+    ],
+  ]);
+
+  await ctx.reply(
+    `🎯 **Target Locked:** \`${targetAddress}\`\n\nSelect the network to run TxShield protocols:`,
+    {
+      parse_mode: "Markdown",
+      ...keyboard,
+    },
+  );
+});
+
+bot.action(/^scan_(\d+)_(0x[a-fA-F0-9]{40})$/, async (ctx) => {
+  // Acknowledge the button click so the Telegram UI doesn't show a loading spinner on the button
+  await ctx.answerCbQuery();
+
+  // Extract the data from the button's hidden payload
+  const chainId = ctx.match[1];
+  const contractAddress = ctx.match[2];
+
+  const HARDCODED_USER_EOA = "0x000000000000000000000000000000000000dEaD";
+  const HARDCODED_AMOUNT_WEI = "1000000000000000000"; // 1 Token
+
+  // Edit the menu message into a loading state
+  await ctx.editMessageText(`🔍 Initiating deep scan on Chain ${chainId}...`);
 
   try {
-    // REPLACE THIS with your actual TxShield API endpoint
-    // const response = await axios.get(`https://api.txshield.com/scan/${contractAddress}`);
+    // Fire your TxShield APIs concurrently to the EXACT chain requested
+    const [simRes, honeyRes, phishRes] = await Promise.all([
+      axios.post("https://api.txshield.xyz/api/simulate/execute-simulation", {
+        userAddress: HARDCODED_USER_EOA,
+        tokenAddress: contractAddress,
+        amount: HARDCODED_AMOUNT_WEI,
+        chainId: Number(chainId),
+      }),
+      axios.post("https://api.txshield.xyz/api/honeypot/honeypot-checks", {
+        tokenAddress: contractAddress,
+        chainId: Number(chainId),
+      }),
+      axios.post("https://api.txshield.xyz/api/phishing/phishing-checks", {
+        tokenAddress: contractAddress,
+        chainId: Number(chainId),
+      }),
+    ]);
 
-    // Simulating the API response for now
-    const scanResult = {
-      isHoneypot: false,
-      riskScore: "Low",
-      verified: true,
-    };
+    // Map your data (Verify these keys match your actual backend response)
+    const simStatus = simRes.data.success ? "✅ Executed" : "🚨 Reverted";
+    const isHoneypot = honeyRes.data.isHoneypot;
+    const isPhishing = phishRes.data.isPhishing;
 
-    // Format the output
     const resultText = `
-🛡️ **TxShield Analysis Complete** 🛡️
-Address: \`${contractAddress}\`
-Status: ${scanResult.isHoneypot ? "🚨 HONEYPOT DETECTED" : "✅ CLEAN"}
-Risk Score: ${scanResult.riskScore}
-Verified: ${scanResult.verified ? "Yes" : "No"}
+🛡️ **TxShield Deep Scan Complete** 🛡️
+Token: \`${contractAddress}\`
+Network ID: **${chainId}**
+
+⚙️ **Simulation**: ${simStatus}
+🍯 **Honeypot**: ${isHoneypot ? "🚨 DETECTED" : "✅ CLEAN"}
+🎣 **Phishing**: ${isPhishing ? "🚨 RISK" : "✅ CLEAN"}
         `;
 
-    // Update the loading message with the final result
-    await ctx.telegram.editMessageText(
-      ctx.chat.id,
-      loadingMsg.message_id,
-      null,
-      resultText,
-      { parse_mode: "Markdown" },
-    );
+    await ctx.editMessageText(resultText, { parse_mode: "Markdown" });
   } catch (error) {
     console.error(error);
-    await ctx.telegram.editMessageText(
-      ctx.chat.id,
-      loadingMsg.message_id,
-      null,
-      "⚠️ Error connecting to TxShield API. Please try again later.",
+    await ctx.editMessageText(
+      "⚠️ TxShield Engine Error: Scan Failed. Ensure the token exists on this network.",
     );
   }
 });
