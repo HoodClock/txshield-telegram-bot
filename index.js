@@ -108,20 +108,25 @@ bot.action(/^scan_(\d+)_(0x[a-fA-F0-9]{40})$/, async (ctx) => {
 
     await ctx.editMessageText(resultText, { parse_mode: "Markdown" });
   } catch (error) {
-    // This logs the ACTUAL backend error to Railway
-    console.error(
-      "Backend Error Data:",
-      error?.response?.data || error.message,
-    );
+    console.error("Full Backend Error:", error);
 
-    // This prints the actual error to Telegram so you aren't guessing
-    const backendReason =
-      error?.response?.data?.errorReason ||
-      error?.response?.data?.message ||
-      "Check Railway Logs.";
+    let rawError = "Unknown Network Error";
+    if (error.response && error.response.data) {
+      // If it's an object, stringify it so Telegram can print it
+      rawError =
+        typeof error.response.data === "object"
+          ? JSON.stringify(error.response.data, null, 2)
+          : error.response.data;
+    } else {
+      rawError = error.message;
+    }
+
+    // Slice it to 3000 chars just in case your backend spits out a massive HTML error page
+    const truncatedError =
+      rawError.length > 3000 ? rawError.substring(0, 3000) + "..." : rawError;
 
     await ctx.editMessageText(
-      `⚠️ **TxShield Engine Error:**\nScan Failed: ${backendReason}\n\n*Ensure this token actually exists on Chain ${chainId}.*`,
+      `⚠️ **TxShield Fatal Server Error:**\n\n\`\`\`json\n${truncatedError}\n\`\`\`\n\n*Paste this exact error block back to Bags.*`,
       { parse_mode: "Markdown" },
     );
   }
