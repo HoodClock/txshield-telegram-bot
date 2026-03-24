@@ -56,25 +56,29 @@ bot.action(/^scan_(\d+)_(0x[a-fA-F0-9]{40})$/, async (ctx) => {
 
   const HARDCODED_USER_EOA = "0x000000000000000000000000000000000000dEaD";
   const HARDCODED_AMOUNT_WEI = "1000000000000000000"; // 1 Token
+  const DUMMY_CURRENCY = "ETH";
 
   // Edit the menu message into a loading state
   await ctx.editMessageText(`🔍 Initiating deep scan on Chain ${chainId}...`);
 
   try {
-    // Fire your TxShield APIs concurrently
+    // Fire your TxShield APIs concurrently with the EXACT payload keys your backend demands
     const [simRes, honeyRes, phishRes] = await Promise.all([
       axios.post("https://api.txshield.xyz/api/simulate/execute-simulation", {
         userAddress: HARDCODED_USER_EOA,
-        tokenAddress: contractAddress,
         amount: HARDCODED_AMOUNT_WEI,
         chainId: Number(chainId),
+        normalizedRecipient: contractAddress,
+        normalizedCurrency: DUMMY_CURRENCY,
       }),
       axios.post("https://api.txshield.xyz/api/honeypot/honeypot-checks", {
-        tokenAddress: contractAddress,
+        contractAddress: contractAddress, // Changed from tokenAddress
         chainId: Number(chainId),
       }),
       axios.post("https://api.txshield.xyz/api/phishing/phishing-checks", {
-        tokenAddress: contractAddress,
+        userAddress: HARDCODED_USER_EOA,
+        recepientAddress: contractAddress, // Spelling matches your backend
+        currencySymbol: DUMMY_CURRENCY,
         chainId: Number(chainId),
       }),
     ]);
