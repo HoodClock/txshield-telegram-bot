@@ -55,7 +55,7 @@ bot.action(/^scan_(\d+)_(0x[a-fA-F0-9]{40})$/, async (ctx) => {
   const contractAddress = ctx.match[2];
 
   const HARDCODED_USER_EOA = "0x000000000000000000000000000000000000dEaD";
-  const HARDCODED_AMOUNT_WEI = "1000000000000000000"; // 1 Token
+  const HARDCODED_AMOUNT_WEI = "1"; // 1 Token
   const DUMMY_CURRENCY = "ETH";
 
   // Edit the menu message into a loading state
@@ -89,8 +89,14 @@ bot.action(/^scan_(\d+)_(0x[a-fA-F0-9]{40})$/, async (ctx) => {
     ]);
 
     // Map your data EXACTLY to your JSON payload
-    const simStatus = simRes.data.success ? "✅ Executed" : "🚨 Reverted";
-    const isHoneypot = simRes.data.isHoneypot || honeyRes.data.isTimeHoneypot;
+    const simData = simRes.data.simulateResult || simRes.data;
+
+    // Map your data EXACTLY to your JSON payload
+    const simStatus = simData.success
+      ? "✅ Executed"
+      : `🚨 Reverted\n   └ *${simData.humanReason || "Unknown Revert"}*`;
+
+    const isHoneypot = simData.isHoneypot || honeyRes.data.isTimeHoneypot;
     const buyTax = honeyRes.data.buyTax || 0;
     const sellTax = honeyRes.data.sellTax || 0;
     const phishingVerdict = phishRes.data.verdict || "Unknown";
