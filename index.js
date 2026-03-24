@@ -70,14 +70,19 @@ bot.action(/^scan_(\d+)_(0x[a-fA-F0-9]{40})$/, async (ctx) => {
         chainId: Number(chainId),
         normalizedRecipient: contractAddress,
         normalizedCurrency: DUMMY_CURRENCY,
+        recipientAddress: contractAddress, // Fallback injection
+        targetContractAddress: contractAddress, // Fallback injection
       }),
       axios.post("https://api.txshield.xyz/api/honeypot/honeypot-checks", {
-        contractAddress: contractAddress, // Changed from tokenAddress
+        contractAddress: contractAddress,
+        targetContractAddress: contractAddress, // Fallback injection
         chainId: Number(chainId),
       }),
       axios.post("https://api.txshield.xyz/api/phishing/phishing-checks", {
         userAddress: HARDCODED_USER_EOA,
-        recepientAddress: contractAddress, // Spelling matches your backend
+        recepientAddress: contractAddress, // Your original spelling
+        recipientAddress: contractAddress, // The spelling the error asked for
+        targetContractAddress: contractAddress, // The alternative the error asked for
         currencySymbol: DUMMY_CURRENCY,
         chainId: Number(chainId),
       }),
