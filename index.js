@@ -157,6 +157,12 @@ const NETWORKS = [
     factory: "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f",
   }, // Uniswap V2
   {
+    name: "BSC",
+    id: 56,
+    rpc: process.env.BSC_WSS_URL,
+    factory: "0xcA143Ce32Fe78f1f7019d7d551a6402fc5350c73",
+  },
+  {
     name: "Base",
     id: 8453,
     rpc: process.env.BASE_WSS_URL,
