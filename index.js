@@ -53,14 +53,22 @@ async function performTxShieldScan(contractAddress, chainId) {
     ),
   ]);
 
-  const simData = simRes.data.simulateResult || simRes.data;
+  const simData = simRes.data.checks?.simulateResult || simRes.data;
   const simStatus = simData.success
     ? "✅ Executed"
-    : `🚨 Reverted\n   └ *${simData.humanReason || "Unknown Revert"}*`;
+    : `🚨 Reverted\n   └ *${simData.errorReason || "Unknown Revert"}*`;
+
+  // Honeypot Payload
+  const honeyData = honeyRes.data.honeypotResponse || honeyRes.data;
   const isHoneypot =
-    simData.isHoneypot || honeyRes.data.isTimeHoneypot || false;
-  const buyTax = honeyRes.data.buyTax || 0;
-  const sellTax = honeyRes.data.sellTax || 0;
+    simData.isHoneypot ||
+    honeyData.isTimeHoneypot ||
+    honeyData.riskScore >= 80 ||
+    false;
+  const buyTax = honeyData.buyTax || 0;
+  const sellTax = honeyData.sellTax || 0;
+
+  // Phishing Payload
   const phishingVerdict = phishRes.data.verdict || "Unknown";
 
   return {
