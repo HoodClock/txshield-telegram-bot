@@ -17,28 +17,40 @@ async function performTxShieldScan(contractAddress, chainId) {
   const DUMMY_CURRENCY = "ETH";
 
   const [simRes, honeyRes, phishRes] = await Promise.all([
-    axios.post("https://api.txshield.xyz/api/simulate/execute-simulation", {
-      userAddress: HARDCODED_USER_EOA,
-      amount: HARDCODED_AMOUNT_WEI,
-      chainId: Number(chainId),
-      normalizedRecipient: contractAddress,
-      normalizedCurrency: DUMMY_CURRENCY,
-      recipientAddress: contractAddress,
-      targetContractAddress: contractAddress,
-    }),
-    axios.post("https://api.txshield.xyz/api/honeypot/honeypot-checks", {
-      contractAddress: contractAddress,
-      targetContractAddress: contractAddress,
-      chainId: Number(chainId),
-    }),
-    axios.post("https://api.txshield.xyz/api/phishing/phishing-checks", {
-      userAddress: HARDCODED_USER_EOA,
-      recepientAddress: contractAddress,
-      recipientAddress: contractAddress,
-      targetContractAddress: contractAddress,
-      currencySymbol: DUMMY_CURRENCY,
-      chainId: Number(chainId),
-    }),
+    axios.post(
+      "https://api.txshield.xyz/api/simulate/execute-simulation",
+      {
+        userAddress: HARDCODED_USER_EOA,
+        amount: HARDCODED_AMOUNT_WEI,
+        chainId: Number(chainId),
+        normalizedRecipient: contractAddress,
+        normalizedCurrency: DUMMY_CURRENCY,
+        recipientAddress: contractAddress,
+        targetContractAddress: contractAddress,
+      },
+      { timeout: 15000 },
+    ),
+    axios.post(
+      "https://api.txshield.xyz/api/honeypot/honeypot-checks",
+      {
+        contractAddress: contractAddress,
+        targetContractAddress: contractAddress,
+        chainId: Number(chainId),
+      },
+      { timeout: 15000 },
+    ),
+    axios.post(
+      "https://api.txshield.xyz/api/phishing/phishing-checks",
+      {
+        userAddress: HARDCODED_USER_EOA,
+        recepientAddress: contractAddress,
+        recipientAddress: contractAddress,
+        targetContractAddress: contractAddress,
+        currencySymbol: DUMMY_CURRENCY,
+        chainId: Number(chainId),
+      },
+      { timeout: 15000 },
+    ),
   ]);
 
   const simData = simRes.data.simulateResult || simRes.data;
