@@ -47,13 +47,8 @@ async function performTxShieldScan(contractAddress, chainId) {
     axios.post(
       "https://api.txshield.xyz/api/simulate/execute-simulation",
       {
-        userAddress: HARDCODED_USER_EOA,
-        amount: HARDCODED_AMOUNT_WEI,
-        chainId: Number(chainId),
         normalizedRecipient: contractAddress,
-        normalizedCurrency: DUMMY_CURRENCY,
-        recipientAddress: contractAddress,
-        targetContractAddress: contractAddress,
+        chainId: Number(chainId),
       },
       { timeout: 15000 },
     ),
@@ -68,11 +63,7 @@ async function performTxShieldScan(contractAddress, chainId) {
     axios.post(
       "https://api.txshield.xyz/api/phishing/phishing-checks",
       {
-        userAddress: HARDCODED_USER_EOA,
         recepientAddress: contractAddress,
-        recipientAddress: contractAddress,
-        targetContractAddress: contractAddress,
-        currencySymbol: DUMMY_CURRENCY,
         chainId: Number(chainId),
       },
       { timeout: 15000 },
